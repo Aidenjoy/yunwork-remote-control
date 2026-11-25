@@ -1,0 +1,143 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir, userInfo } from 'node:os'
+import { dirname, isAbsolute, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import z from '@deepseek-ai/schemastery'
+import { CLOUD_API_BASE_URL, type ConnectionSettings } from '../contracts/index.js'
+import { normalizeServerOrigin } from './account/server.js'
+
+export interface YunworkBridgeContract {
+  readonly runtimeType: string
+  readonly serverUrl?: string
+  readonly webUrl?: string
+  readonly productName?: string
+  readonly shortName?: string
+}
+
+function probeYunworkContract(): YunworkBridgeContract | undefined {
+  // Electron exposes this optional property; the plugin also runs in plain Node.
+  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath
+  const candidates = [
+    process.env['YUNWORK_RUNTIME'],
+    typeof resourcesPath === 'string' ? join(resourcesPath, 'yunwork-runtime.json') : undefined,
+    typeof resourcesPath === 'string' ? join(resourcesPath, 'app.asar.unpacked', 'yunwork-runtime.json') : undefined,
+    join(dirname(process.execPath), 'resources', 'yunwork-runtime.json'),
+  ].filter((p): p is string => typeof p === 'string' && p.trim() !== '')
+
+  let parsed: Record<string, unknown> | undefined
+  for (const file of candidates) {
+    if (!existsSync(file)) continue
+    try {
+      const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown
+      if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+        parsed = raw as Record<string, unknown>
+        break
+      }
+    } catch {
+      // Ignore unreadable candidate and continue probing.
+    }
+  }
+
+  const runtimeType = process.env['YUNWORK_ANYWHERE_RUNTIME_TYPE']?.trim()
+    || (typeof parsed?.['anywhereRuntimeType'] === 'string' ? parsed['anywhereRuntimeType'].trim() : '')
+    || (parsed !== undefined ? 'yunwork' : '')
+  const serverUrl = process.env['YUNWORK_ANYWHERE_SERVER_URL']?.trim()
+    || (typeof parsed?.['anywhereServerUrl'] === 'string' ? parsed['anywhereServerUrl'].trim() : '')
+  const webUrl = process.env['YUNWORK_ANYWHERE_WEB_URL']?.trim()
+    || (typeof parsed?.['anywhereWebUrl'] === 'string' ? parsed['anywhereWebUrl'].trim() : '')
+  const productName = typeof parsed?.['productName'] === 'string' ? parsed['productName'].trim() : undefined
+  const shortName = typeof parsed?.['shortName'] === 'string' ? parsed['shortName'].trim() : undefined
+
+  if (parsed === undefined && runtimeType === '' && serverUrl === '' && webUrl === '') return undefined
+  return {
+    runtimeType: runtimeType || 'yunwork',
+    ...(serverUrl !== '' ? { serverUrl } : {}),
+    ...(webUrl !== '' ? { webUrl } : {}),
+    ...(productName !== undefined && productName !== '' ? { productName } : {}),
+    ...(shortName !== undefined && shortName !== '' ? { shortName } : {}),
+  }
+}
+
+export interface Config {
+  runtimeType?: 'dsh' | 'yunwork'
+  dshHome?: string
+  apiBaseUrl?: string
+  stateRoot?: string
+  connectorSourceDir?: string
+  uvPath?: string
+}
+
+export const Config: z<Config> = z.object({
+  runtimeType: z.union([z.const('dsh'), z.const('yunwork')]),
+  dshHome: z.string(),
+  apiBaseUrl: z.string(),
+  stateRoot: z.string(),
+  connectorSourceDir: z.string(),
+  uvPath: z.string(),
+})
+
+export interface ResolvedConfig extends ConnectionSettings {
+  dshHome?: string
+  stateRoot: string
+  legacyStateRoot?: string
+  connectorSourceDir: string
+  uvPath: string
+  runtimeType: string
+  anywhereWebUrl?: string
+  productName?: string
+  shortName?: string
+}
+
+/** Explicit profile selection wins; packaged metadata supplies the default. */
+function runtimeType(config: Config): string {
+  return config.runtimeType ?? probeYunworkContract()?.runtimeType ?? 'dsh'
+}
+
+export function effectiveDshHome(dshHome?: string): string {
+  const configured = dshHome ?? process.env['DSH_HOME']
+  if (typeof configured === 'string' && configured.trim() !== '' && isAbsolute(configured)) {
+    return configured.trim()
+  }
+  return join(userInfo().homedir, '.dsh')
+}
+
+export function stateRoot(config: Config): string {
+  if (config.stateRoot !== undefined) return config.stateRoot
+  return join(effectiveDshHome(config.dshHome), 'anywhere', 'dsh-bridge-next')
+}
+
+/** Match Connector's DSH_HOME scope and keep DSH/YunWork rendezvous distinct. */
+export function bridgeDirectory(config: Config = {}): string {
+  return join(effectiveDshHome(config.dshHome), 'anywhere', 'dsh-bridge')
+}
+
+/**
+ * Where plugins before 2.0.3 published the endpoint. Connectors before 2.0.3 look only here, so
+ * the bridge mirrors its endpoint to this directory; it is resolved exactly as those plugins did.
+ */
+export function legacyBridgeDirectory(config: Config): string | undefined {
+  if (runtimeType(config) === 'yunwork') return undefined
+  const home = config.dshHome ?? process.env['DSH_HOME'] ?? join(homedir(), '.dsh')
+  return isAbsolute(home) ? join(home, 'agents-anywhere', 'bridge') : undefined
+}
+
+export function resolveConfig(config: Config): ResolvedConfig {
+  if (config.dshHome !== undefined && !isAbsolute(config.dshHome)) throw new Error('DSH_HOME 必须是绝对路径。')
+  const contract = probeYunworkContract()
+  const selectedRuntimeType = config.runtimeType ?? contract?.runtimeType ?? 'dsh'
+  const root = stateRoot(config)
+  const connectorSourceDir = config.connectorSourceDir ?? fileURLToPath(new URL('./bundled-connector/', import.meta.url))
+  if (!isAbsolute(root) || !isAbsolute(connectorSourceDir)) throw new Error('数据目录和 Connector 源码目录必须是绝对路径。')
+  return {
+    dshHome: effectiveDshHome(config.dshHome),
+    runtimeType: selectedRuntimeType,
+    stateRoot: root,
+    ...(config.stateRoot === undefined && selectedRuntimeType === 'dsh' && root === join(userInfo().homedir, '.agents-anywhere', 'dsh-bridge-next') ? { legacyStateRoot: join(userInfo().homedir, '.agentsanywhere', 'dsh-bridge-next') } : {}),
+    connectorSourceDir,
+    apiBaseUrl: normalizeServerOrigin(config.apiBaseUrl ?? contract?.serverUrl ?? CLOUD_API_BASE_URL),
+    uvPath: config.uvPath ?? process.env['UV_PATH'] ?? 'uv',
+    ...(contract?.webUrl !== undefined ? { anywhereWebUrl: contract.webUrl } : {}),
+    ...(contract?.productName !== undefined ? { productName: contract.productName } : {}),
+    ...(contract?.shortName !== undefined ? { shortName: contract.shortName } : {}),
+  }
+}
