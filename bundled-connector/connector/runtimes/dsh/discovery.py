@@ -15,16 +15,16 @@ class DshDiscovery:
     metadata: dict[str, Any] | None = None
 
 
-def _static_metadata(values: dict[str, Any]) -> dict[str, Any]:
+def _static_metadata(values: dict[str, Any], runtime_type: str = "dsh") -> dict[str, Any]:
     return {
-        "endpoint": str(provider_config.endpoint_path()),
+        "endpoint": str(provider_config.endpoint_path() if runtime_type == "dsh" else provider_config.endpoint_path(runtime_type)),
         "storageMode": "dsh-native",
         "sameSessionWriterLimit": 1,
         "crossProcessWriterExclusion": False,
     }
 
 
-async def discover(values: dict[str, Any]) -> DshDiscovery:
+async def discover(values: dict[str, Any], runtime_type: str = "dsh") -> DshDiscovery:
     """Report that this connector supports the DSH runtime type.
 
     The device list only answers "which runtime types does this connector
@@ -32,10 +32,10 @@ async def discover(values: dict[str, Any]) -> DshDiscovery:
     actually reachable is a configuration/start concern and belongs to
     probe(); ``configured`` is only meaningful there.
     """
-    return DshDiscovery(True, True, reason=None, metadata=_static_metadata(values))
+    return DshDiscovery(True, True, reason=None, metadata=_static_metadata(values, runtime_type))
 
 
-async def probe(values: dict[str, Any]) -> DshDiscovery:
+async def probe(values: dict[str, Any], runtime_type: str = "dsh") -> DshDiscovery:
     """Ask the plugin registered on this process's Router. Configuration/start only.
 
     Probing publishes the rendezvous, so a plugin that is running finds this
@@ -45,7 +45,7 @@ async def probe(values: dict[str, Any]) -> DshDiscovery:
     from connector.runtimes.dsh.bridge.host import bridge_host
 
     try:
-        client = BridgeClient(await bridge_host(), connector_id="discovery", startup_timeout=2, request_timeout=2)
+        client = BridgeClient(await (bridge_host() if runtime_type == "dsh" else bridge_host(runtime_type)), connector_id="discovery", startup_timeout=2, request_timeout=2)
     except (OSError, RuntimeError) as exc:
         return DshDiscovery(False, False, reason=f"无法启动本机 Router：{exc}")
     try:
@@ -66,5 +66,5 @@ async def probe(values: dict[str, Any]) -> DshDiscovery:
         True,
         True,
         bridge_version=result["identity"].get("bridgeVersion"),
-        metadata={**extra, **_static_metadata(values)},
+        metadata={**extra, **_static_metadata(values, runtime_type)},
     )

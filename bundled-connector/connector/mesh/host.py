@@ -39,7 +39,8 @@ async def mount_host_services(hub: LocalHub, *services: object) -> None:
     published last, once the services it points to are served.
     """
 
-    from connector.runtimes.dsh.bridge.host import host_for
+    from connector.runtimes.dsh import provider_config
+    from connector.runtimes.dsh.bridge.host import host_for, start_yunwork_bridge
 
     dsh_host = None
     bridge: tuple[object, ...] = ()
@@ -63,6 +64,17 @@ async def mount_host_services(hub: LocalHub, *services: object) -> None:
                 type(exc).__name__,
                 exc,
             )
+    # The branded launcher supplies this selection before any runtime is configured.
+    # Plain DSH startup must not take over another app's YunWork rendezvous.
+    if provider_config.runtime_type() != "yunwork":
+        return
+    try:
+        await start_yunwork_bridge(hub)
+    except Exception as exc:  # noqa: BLE001 - an optional runtime cannot block Control
+        logger.warning(
+            "YunWork bridge could not be prepared error_type={} error={}",
+            type(exc).__name__, exc,
+        )
 
 
 def ready_message(hub: LocalHub) -> dict[str, Any]:

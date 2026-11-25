@@ -59,7 +59,7 @@ class DshProvider(RuntimeProvider):
 
     @property
     def runtime(self) -> str:
-        return os.environ.get("YUNWORK_ANYWHERE_RUNTIME_TYPE", "").strip() or "dsh"
+        return "dsh"
 
     @property
     def runtime_type(self) -> str:
@@ -224,7 +224,7 @@ class DshProvider(RuntimeProvider):
         config: RuntimeConfig,
         host: RuntimeHostClient,
     ) -> AgentRuntime:
-        runtime = DshRuntime(config=config, host=host)
+        runtime = DshRuntime(config=config, host=host, runtime_type=self.runtime_type)
         from connector.planning.infrastructure.binding import bind_planning
         from connector.runtimes.dsh.planning import DshPlanningPort
         return bind_planning(runtime, host, DshPlanningPort(runtime))

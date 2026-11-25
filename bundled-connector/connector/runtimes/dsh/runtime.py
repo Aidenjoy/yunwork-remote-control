@@ -55,15 +55,17 @@ class DshRuntime(AgentRuntime):
         config: RuntimeConfig,
         host: RuntimeHostClient,
         client_version: str = "2.0",
+        runtime_type: str = "dsh",
     ) -> None:
         self.config = config
         self.host = host
         self.client_version = client_version
-        self._identity = RuntimeIdentity(
-            provider_config.runtime_type(),
-            "unknown",
-            provider_config.runtime_display_name(),
-        )
+        self.runtime_type = runtime_type
+        self.display_name = provider_config.runtime_display_name(runtime_type)
+        self._identity = RuntimeIdentity(self.runtime_type, "unknown", self.display_name)
+        self._runtime_label = self.display_name if runtime_type == "yunwork" else "DSH"
+        self._syncing_phase = {**SYNCING_PHASE, "message": SYNCING_PHASE["message"].replace("DSH", self._runtime_label)}
+        self._sync_interrupted_phase = {**SYNC_INTERRUPTED_PHASE, "message": SYNC_INTERRUPTED_PHASE["message"].replace("DSH", self._runtime_label)}
         self._client: BridgeClient | None = None
         self._connect_lock = asyncio.Lock()
         # Each connection owns one inventory and one history capture.
@@ -95,7 +97,7 @@ class DshRuntime(AgentRuntime):
             if self._sync is not None:
                 await self._sync.close()
             if not self._stopping and self._client is not None and self.sync_mode == "events":
-                self._sync = SyncRelay(self._client, self.host, on_exit=self._relay_exited, quarantined=self._quarantined)
+                self._sync = SyncRelay(self._client, self.host, runtime_type=self.runtime_type, on_exit=self._relay_exited, quarantined=self._quarantined)
                 self._sync.start()
 
     @property
@@ -105,7 +107,7 @@ class DshRuntime(AgentRuntime):
     async def start(self) -> None:
         self._stopping = False
         await self.host.runtime_health_update("starting", phase={
-            "code": "connecting", "message": "正在连接 DSH 并同步会话…", "retryable": True,
+            "code": "connecting", "message": f"正在连接 {self._runtime_label} 并同步会话…", "retryable": True,
         })
         try:
             await self._ensure_client()
@@ -115,7 +117,7 @@ class DshRuntime(AgentRuntime):
                     "starting",
                     phase={
                         "code": "waiting_bridge",
-                        "message": "正在等待本地 DSH Bridge；请启动 DSH 并启用手机连接插件。",
+                        "message": f"正在等待本地 {self._runtime_label} Bridge；请启动 {self._runtime_label} 并启用手机连接插件。",
                         "retryable": True,
                     },
                 )
@@ -320,7 +322,7 @@ class DshRuntime(AgentRuntime):
                     return RuntimeTimelineSnapshot(
                         session_id=session_id,
                         external_session_id=native_id,
-                        runtime=provider_config.runtime_type(),
+                        runtime=self.runtime_type,
                         items=tuple(items),
                         complete=complete,
                         metadata=metadata,
@@ -344,7 +346,7 @@ class DshRuntime(AgentRuntime):
                 raise RuntimeUpstreamError("DSH source observation returned a different session")
             # Wait for ingestion before returning session.state. The server's
             # detail snapshot then reads the fresh source fact from its database.
-            await self.host.publish_runtime_notifications(provider_config.runtime_type(), [{
+            await self.host.publish_runtime_notifications(self.runtime_type, [{
                 "method": "session.source.updated", "params": {
                     "sessionId": session_id, "externalSessionId": payload.get("externalSessionId"),
                     **source, "observationOrigin": "operation",
@@ -451,7 +453,7 @@ class DshRuntime(AgentRuntime):
             capability_set = _object(await self._request("getRuntimeCapabilities"))
             if not provider_config.dsh_capabilities(capability_set)["attachments"]:
                 raise RuntimeUnsupportedError("This DSH Bridge does not support attachments")
-        async with staged_attachments(self.host, session_id, attachments, provider_config.bridge_directory()) as images:
+        async with staged_attachments(self.host, session_id, attachments, provider_config.bridge_directory(self.runtime_type)) as images:
             if images:
                 params["attachments"] = images
             payload = _object(await self._request(method, params))
@@ -466,7 +468,7 @@ class DshRuntime(AgentRuntime):
     async def _start_client(self) -> None:
         values = provider_config.normalized_config_values(dict(self.config.values))
         client = BridgeClient(
-            await bridge_host(),
+            await (bridge_host() if self.runtime_type == "dsh" else bridge_host(self.runtime_type)),
             connector_id=self.host.connector_id,
             session_namespace=getattr(self.host, "session_namespace", self.host.connector_id),
             client_version=self.client_version,
@@ -478,13 +480,13 @@ class DshRuntime(AgentRuntime):
             result = await client.start()
         except BridgeUnavailableError as exc:
             await client.close()
-            raise RuntimeUnavailableError("请启动 DSH，并启用手机连接插件。") from exc
+            raise RuntimeUnavailableError(f"请启动 {self._runtime_label}，并启用手机连接插件。") from exc
         try:
             identity = result["identity"]
             self._identity = RuntimeIdentity(
-                runtime=provider_config.runtime_type(),
+                runtime=self.runtime_type,
                 runtime_version=identity.get("runtimeVersion", "unknown"),
-                display_name=provider_config.runtime_display_name(),
+                display_name=self.display_name,
                 protocol_version=identity["protocolVersion"],
             )
             # Bootstrap only declared capabilities; read-only startup needs no model catalog.
@@ -502,7 +504,7 @@ class DshRuntime(AgentRuntime):
                 from dataclasses import replace
                 from connector.runtime_protocol.models import RuntimeCapability
                 items = tuple(item for item in capabilities.capabilities if item.capability_id != "session.planning")
-                capabilities = replace(capabilities, capabilities=(*items, RuntimeCapability(capability_id="session.planning", runtime=provider_config.runtime_type(), scope="runtime", supported=False, available=False, metadata={"nativePlanningAvailable": native_planning})))
+                capabilities = replace(capabilities, capabilities=(*items, RuntimeCapability(capability_id="session.planning", runtime=self.runtime_type, scope="runtime", supported=False, available=False, metadata={"nativePlanningAvailable": native_planning})))
             await self.host.runtime_capabilities_update(capabilities)
             supported = {item.capability_id for item in capabilities.capabilities if item.available and item.supported}
             for capability, method, decode, publish in (
@@ -521,8 +523,8 @@ class DshRuntime(AgentRuntime):
             self._sync_mode = "events" if result.get("features", {}).get("syncMode") == "events" else "polling"
             if self._sync_mode == "events":
                 # The Bridge answers now; the event feed catching up is progress, not unavailability.
-                await self.host.runtime_health_update("running", phase=SYNCING_PHASE)
-                self._sync = SyncRelay(client, self.host, on_exit=self._relay_exited, quarantined=self._quarantined)
+                await self.host.runtime_health_update("running", phase=self._syncing_phase)
+                self._sync = SyncRelay(client, self.host, runtime_type=self.runtime_type, on_exit=self._relay_exited, quarantined=self._quarantined)
                 self._sync.start()
             else:
                 with suppress(Exception):
@@ -592,8 +594,8 @@ class DshRuntime(AgentRuntime):
             # Its quarantine retries now belong to the replacement.
             await failed.close()
             with suppress(Exception):
-                await self.host.runtime_health_update("running", phase=SYNC_INTERRUPTED_PHASE)
-            self._sync = SyncRelay(client, self.host, on_exit=self._relay_exited, quarantined=self._quarantined)
+                await self.host.runtime_health_update("running", phase=self._sync_interrupted_phase)
+            self._sync = SyncRelay(client, self.host, runtime_type=self.runtime_type, on_exit=self._relay_exited, quarantined=self._quarantined)
             self._sync.start()
 
     async def _handle_exit(self, error: BaseException | None) -> None:
@@ -605,7 +607,7 @@ class DshRuntime(AgentRuntime):
             return
         with suppress(Exception):
             await self.host.runtime_error(
-                "dsh",
+                self.runtime_type,
                 "DSH_BRIDGE_EXITED",
                 "DeepSeek Harness bridge disconnected",
                 details={"retryable": True},

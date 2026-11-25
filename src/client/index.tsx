@@ -26,7 +26,7 @@ export function apply(ctx: Context): void {
   reportSelection(ctx, services.connection.rpc)
   ctx.effect(() => registerPluginSettings(services.slots, host), 'yundashiRemoteControl.plugin-settings')
   ctx.effect(() => services.slots.inject('sidebar.footer.action', () => services.slots.register({
-    name: 'sidebar.footer.action', id: 'agents-anywhere-next', order: 26,
+    name: 'sidebar.footer.action', id: 'yundashi-remote-control', order: 26,
     locale: LOCALE_NS, label: () => t('云大师远程控制'), inject: () => ({ host }),
   }, ConnectionEntry)), 'yundashiRemoteControl.sidebar')
 }

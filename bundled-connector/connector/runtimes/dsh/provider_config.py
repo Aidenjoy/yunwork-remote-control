@@ -18,8 +18,9 @@ def runtime_type() -> str:
     return os.environ.get("YUNWORK_ANYWHERE_RUNTIME_TYPE", "").strip() or "dsh"
 
 
-def runtime_display_name() -> str:
-    if runtime_type() != "dsh":
+def runtime_display_name(selected_runtime_type: str | None = None) -> str:
+    """Resolve branding for one provider without changing another provider identity."""
+    if (selected_runtime_type or runtime_type()) != "dsh":
         return (
             os.environ.get("YUNWORK_SHORT_NAME", "").strip()
             or os.environ.get("YUNWORK_PRODUCT_NAME", "").strip()
@@ -125,17 +126,18 @@ def dsh_home(values: dict[str, Any]) -> Path:
     return Path(canonical_path(path))
 
 
-def bridge_directory() -> Path:
+def bridge_directory(runtime_type: str = "dsh") -> Path:
     """Per-user rendezvous shared with the plugin; isolated under DSH_HOME when set."""
     dsh_home_env = os.environ.get("DSH_HOME", "").strip()
-    if dsh_home_env and Path(dsh_home_env).is_absolute():
+    if runtime_type == "yunwork" and dsh_home_env and Path(dsh_home_env).is_absolute():
+        # Keep branded installations' existing rendezvous, without moving plain DSH.
         return Path(canonical_path(Path(dsh_home_env) / "anywhere" / "dsh-bridge"))
-    return Path(canonical_path(runtime_owner.system_home() / ".agents-anywhere" / "dsh-bridge"))
+    return Path(canonical_path(runtime_owner.system_home() / ".agents-anywhere" / ("yunwork-bridge" if runtime_type == "yunwork" else "dsh-bridge")))
 
 
-def endpoint_path() -> Path:
+def endpoint_path(runtime_type: str = "dsh") -> Path:
     """Where this Connector publishes its Router for the plugin (the 2.0 rendezvous)."""
-    return bridge_directory() / "connector.json"
+    return bridge_directory(runtime_type) / "connector.json"
 
 
 def legacy_endpoint_path(values: dict[str, Any]) -> Path:

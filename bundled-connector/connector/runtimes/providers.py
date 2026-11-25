@@ -13,10 +13,12 @@ from connector.runtimes.acp.provider import AcpAgentProvider
 from connector.runtimes.claude.provider import ClaudeProvider
 from connector.runtimes.codex.provider import CodexProvider
 from connector.runtimes.dsh.provider import DshProvider
+from connector.runtimes.yunwork.provider import YunworkProvider
 
 
 def default_runtime_providers() -> tuple[RuntimeProvider, ...]:
     return (
+        YunworkProvider(),
         CodexProvider(),
         ClaudeProvider(),
         DshProvider(),

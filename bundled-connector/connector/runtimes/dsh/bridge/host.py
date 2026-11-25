@@ -206,7 +206,9 @@ def read_rendezvous(path: Path | None = None) -> dict[str, Any]:
 class BridgeHost:
     """Per Router: the Sync service, its subscriptions and the published rendezvous."""
 
-    def __init__(self, hub: LocalHub) -> None:
+    def __init__(self, hub: LocalHub, runtime_type: str = "dsh") -> None:
+        self.runtime_type = runtime_type
+        self._start_lock = asyncio.Lock()
         self.hub = hub
         self.registry = SubscriptionRegistry()
         self._service: SyncService | None = None
@@ -240,7 +242,7 @@ class BridgeHost:
         self.publish()
 
     def publish(self) -> None:
-        path = rendezvous_path()
+        path = rendezvous_path() if self.runtime_type == "dsh" else provider_config.endpoint_path(self.runtime_type)
         write_private_json(path, {
             "version": RENDEZVOUS_VERSION,
             "protocol": "meshcall",
@@ -259,6 +261,7 @@ class BridgeHost:
 
 
 _hosts: dict[int, BridgeHost] = {}
+_yunwork_hosts: dict[int, BridgeHost] = {}
 
 
 def host_for(hub: LocalHub) -> BridgeHost:
@@ -270,10 +273,37 @@ def host_for(hub: LocalHub) -> BridgeHost:
     return host
 
 
-async def bridge_host() -> BridgeHost:
+async def bridge_host(runtime_type: str = "dsh") -> BridgeHost:
     """The DSH bridge services of this process's Router, started on first use."""
-    host = host_for(await local_hub())
-    await host.start()
+    parent = await local_hub()
+    if runtime_type == "dsh":
+        host = host_for(parent)
+        await host.start()
+        return host
+    if runtime_type != "yunwork":
+        raise ValueError("unsupported DSH-compatible runtime")
+    return await start_yunwork_bridge(parent)
+
+
+async def start_yunwork_bridge(parent: LocalHub) -> BridgeHost:
+    """Publish the independent YunWork bridge before discovery/configuration needs it."""
+    # 独立 Router 复用 DSH 协议，但不共享认证密钥、发现文件或同步订阅。
+    host = _yunwork_hosts.get(id(parent))
+    if host is None:
+        child = LocalHub(directory=parent.directory / "yunwork")
+        host = BridgeHost(child, runtime_type="yunwork")
+        _yunwork_hosts[id(parent)] = host
+        async def close_child() -> None:
+            _yunwork_hosts.pop(id(parent), None)
+            await host.stop()
+            await child.stop()
+        parent.on_stop(close_child)
+    async with host._start_lock:
+        if not host.mounted:
+            from connector.mesh.logs import LogHub, LogsService
+            await host.hub.start()
+            await host.hub.mount(host.service(), LogsService(LogHub(directory=host.hub.directory / "logs")))
+        host.publish()
     return host
 
 

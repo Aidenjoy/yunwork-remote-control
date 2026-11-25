@@ -90,7 +90,7 @@ export interface ResolvedConfig extends ConnectionSettings {
 
 /** Explicit profile selection wins; packaged metadata supplies the default. */
 function runtimeType(config: Config): string {
-  return config.runtimeType ?? probeYunworkContract()?.runtimeType ?? 'dsh'
+  return config.runtimeType ?? probeYunworkContract()?.runtimeType ?? 'yunwork'
 }
 
 export function effectiveDshHome(dshHome?: string): string {
@@ -124,7 +124,7 @@ export function legacyBridgeDirectory(config: Config): string | undefined {
 export function resolveConfig(config: Config): ResolvedConfig {
   if (config.dshHome !== undefined && !isAbsolute(config.dshHome)) throw new Error('DSH_HOME 必须是绝对路径。')
   const contract = probeYunworkContract()
-  const selectedRuntimeType = config.runtimeType ?? contract?.runtimeType ?? 'dsh'
+  const selectedRuntimeType = config.runtimeType ?? contract?.runtimeType ?? 'yunwork'
   const root = stateRoot(config)
   const connectorSourceDir = config.connectorSourceDir ?? fileURLToPath(new URL('./bundled-connector/', import.meta.url))
   if (!isAbsolute(root) || !isAbsolute(connectorSourceDir)) throw new Error('数据目录和 Connector 源码目录必须是绝对路径。')
@@ -136,8 +136,8 @@ export function resolveConfig(config: Config): ResolvedConfig {
     connectorSourceDir,
     apiBaseUrl: normalizeServerOrigin(config.apiBaseUrl ?? contract?.serverUrl ?? CLOUD_API_BASE_URL),
     uvPath: config.uvPath ?? process.env['UV_PATH'] ?? 'uv',
-    ...(contract?.webUrl !== undefined ? { anywhereWebUrl: contract.webUrl } : {}),
-    ...(contract?.productName !== undefined ? { productName: contract.productName } : {}),
-    ...(contract?.shortName !== undefined ? { shortName: contract.shortName } : {}),
+    anywhereWebUrl: contract?.webUrl ?? CLOUD_API_BASE_URL,
+    productName: contract?.productName ?? '云大师 Agent',
+    shortName: contract?.shortName ?? '云大师',
   }
 }

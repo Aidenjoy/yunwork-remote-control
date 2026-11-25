@@ -436,12 +436,11 @@ def command_result(value: Any, command: str) -> RuntimeCommandResult:
 
 
 def _runtime(data: Mapping[str, Any]) -> str:
-    from connector.runtimes.dsh import provider_config
-    expected = provider_config.runtime_type()
+    """Keep payload identity local to its source, independent of process branding."""
     runtime = data.get("runtime", "dsh")
-    if runtime not in ("dsh", expected):
-        raise ValueError(f"bridge payload runtime must be dsh or {expected}")
-    return expected
+    if runtime not in {"dsh", "yunwork"}:
+        raise ValueError("bridge payload runtime must be dsh or yunwork")
+    return runtime
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:

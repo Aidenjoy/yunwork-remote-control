@@ -24,7 +24,7 @@ export function registerPluginSettings(slots: PluginSettingsSlots, host: Onboard
     name: 'plugins.bundle.config', key: PACKAGE, locale: LOCALE_NS, inject: () => ({ host }),
   }, PluginSettings))
   const actions = slots.inject('plugins.detail.actions', () => slots.register({
-    name: 'plugins.detail.actions', id: 'agents-anywhere-panel', order: 20, locale: LOCALE_NS, inject: () => ({ host }),
+    name: 'plugins.detail.actions', id: 'yundashi-remote-control-panel', order: 20, locale: LOCALE_NS, inject: () => ({ host }),
   }, PluginActions))
   return () => { actions(); settings() }
 }
