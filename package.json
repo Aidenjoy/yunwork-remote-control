@@ -1,6 +1,6 @@
 {
   "name": "@yundashi/dsh-remote-control",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "云大师远程控制插件，支持从手机或其他设备连接并管理本地 Agent 会话。",
   "type": "module",
   "main": "./lib/index.js",

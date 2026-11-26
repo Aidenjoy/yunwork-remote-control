@@ -129,7 +129,7 @@ def dsh_home(values: dict[str, Any]) -> Path:
 def bridge_directory(runtime_type: str = "dsh") -> Path:
     """Per-user rendezvous shared with the plugin; isolated under DSH_HOME when set."""
     dsh_home_env = os.environ.get("DSH_HOME", "").strip()
-    if runtime_type == "yunwork" and dsh_home_env and Path(dsh_home_env).is_absolute():
+    if (runtime_type == "yunwork" or os.environ.get("YUNWORK_ANYWHERE_RUNTIME_TYPE", "").strip() == "yunwork") and dsh_home_env and Path(dsh_home_env).is_absolute():
         # Keep branded installations' existing rendezvous, without moving plain DSH.
         return Path(canonical_path(Path(dsh_home_env) / "anywhere" / "dsh-bridge"))
     return Path(canonical_path(runtime_owner.system_home() / ".agents-anywhere" / ("yunwork-bridge" if runtime_type == "yunwork" else "dsh-bridge")))

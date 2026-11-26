@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, resolve, sep } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '..')
@@ -30,5 +30,18 @@ for (const entry of ['pyproject.toml', 'connector']) {
 
 // pyproject.toml declares readme = "README.md" for hatchling; emit a minimal file without upstream branding.
 writeFileSync(join(TARGET, 'README.md'), '# Yundashi Remote Control Connector\n', 'utf8')
+
+// Ensure Python Connector honors DSH_HOME/anywhere/dsh-bridge whenever YUNWORK_ANYWHERE_RUNTIME_TYPE=yunwork,
+// even when Web requests runtime_type="dsh".
+const providerConfigPath = join(TARGET, 'connector', 'runtimes', 'dsh', 'provider_config.py')
+const providerConfigRaw = readFileSync(providerConfigPath, 'utf8')
+const oldCondition = 'if runtime_type == "yunwork" and dsh_home_env and Path(dsh_home_env).is_absolute():'
+const newCondition = 'if (runtime_type == "yunwork" or os.environ.get("YUNWORK_ANYWHERE_RUNTIME_TYPE", "").strip() == "yunwork") and dsh_home_env and Path(dsh_home_env).is_absolute():'
+if (!providerConfigRaw.includes(newCondition)) {
+  if (!providerConfigRaw.includes(oldCondition)) {
+    throw new Error(`Failed to patch bridge_directory in ${providerConfigPath}: target line not found`)
+  }
+  writeFileSync(providerConfigPath, providerConfigRaw.replace(oldCondition, newCondition), 'utf8')
+}
 
 process.stdout.write(`Copied connector from ${SOURCE} -> ${TARGET}\n`)
