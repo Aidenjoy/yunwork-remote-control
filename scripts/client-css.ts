@@ -11,13 +11,13 @@ export function clientCss(packageId: string, root: string): TsdownPlugin {
     name: 'dsh-css-modules-inline',
     resolveId(source, importer) {
       if (!source.endsWith('.module.css') || !importer) return null
-      return prefix + resolve(dirname(importer), source) + suffix
+      return prefix + relative(root, resolve(dirname(importer), source)).replaceAll('\\', '/') + suffix
     },
     async load(id) {
       if (!id.startsWith(prefix)) return null
-      const path = id.slice(prefix.length, -suffix.length)
+      const filename = id.slice(prefix.length, -suffix.length)
+      const path = resolve(root, filename)
       this.addWatchFile(path)
-      const filename = relative(root, path).replaceAll('\\', '/')
       const result = transform({ filename, code: await readFile(path), cssModules: { pattern: '[hash]_[local]' }, minify: true, analyzeDependencies: true })
       let css = result.code.toString()
       for (const dependency of result.dependencies ?? []) {

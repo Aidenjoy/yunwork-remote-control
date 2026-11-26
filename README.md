@@ -22,7 +22,7 @@ npm run build
 ## 校验与打包
 
 ```bash
-npx tsc --noEmit
+npm run typecheck
 npm run build
 node scripts/check-build.ts
 npm pack --ignore-scripts

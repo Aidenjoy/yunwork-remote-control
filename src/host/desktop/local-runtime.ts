@@ -10,7 +10,10 @@ export type RuntimeOwner = {
 };
 export type LocalState = Record<string, unknown> & { version: 2; connectorIds: string[]; runtime?: RuntimeOwner };
 export type OwnershipState = { status: "owned" | "conflict" | "error"; message?: string; owner?: RuntimeOwner };
-export const localRuntimePath = (home = userInfo().homedir): string => path.join(home, ".agents-anywhere", "connector-runtime.json");
+export const localRuntimePath = (home = userInfo().homedir): string => {
+  const dshHome = process.env['DSH_HOME']?.trim() || path.join(home, ".dsh");
+  return path.join(dshHome, "anywhere", "connector-runtime.json");
+};
 
 function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -52,19 +55,7 @@ export function readLocalState(file: string): LocalState {
   return { ...value, version: 2, connectorIds: ids(value.connectorIds) } as LocalState;
 }
 
-/** Read legacy metadata without migrating or rewriting it from a host process. */
+/** Standalone plugin reads only its isolated runtime file; never fall back to ~/.agentsanywhere. */
 export function readMachineStateFile(file: string): LocalState {
-  const state = readLocalState(file);
-  if (state.legacyMachineMigrated === true) return state;
-  const legacyRoot = path.join(path.dirname(path.dirname(file)), ".agentsanywhere");
-  const machine = readJson(path.join(legacyRoot, "machine.json"));
-  const installation = readJson(path.join(legacyRoot, "desktop", "install.json"));
-  if (machine && machine.version !== 1) throw new Error("Unsupported legacy machine record version.");
-  if (installation && installation.version !== 1) throw new Error("Unsupported legacy installation record version.");
-  return {
-    ...machine, ...state,
-    connectorIds: ids([...ids(machine?.connectorIds), ...state.connectorIds]),
-    ...(state.desktop === undefined && (machine?.desktop || installation)
-      ? { desktop: machine?.desktop ?? installation } : {}),
-  };
+  return readLocalState(file);
 }

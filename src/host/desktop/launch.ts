@@ -1,10 +1,8 @@
-import { execFile, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { promisify } from 'node:util'
 import type { DesktopLaunch } from '../../contracts/index.js'
 
 /** Registered by the packaged Desktop app; also carries its OAuth callback. */
-export const DESKTOP_PROTOCOL = 'agents-anywhere-desktop'
+export const DESKTOP_PROTOCOL = 'yundashi-remote-control'
 
 export interface DesktopLaunchTarget {
   executablePath: string
@@ -24,30 +22,8 @@ export function desktopOnboardingUrl(flowId: string): string {
   return `${DESKTOP_PROTOCOL}://onboarding?${params.toString()}`
 }
 
-async function openWithHandler(command: string, url: string): Promise<void> {
-  await promisify(execFile)(command, [url], { timeout: 5_000, windowsHide: true })
-}
-
-async function spawnDetached(executablePath: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(executablePath, args, { detached: true, stdio: 'ignore', windowsHide: true })
-    child.once('error', reject)
-    child.once('spawn', () => { child.unref(); resolve() })
-  })
-}
-
-/**
- * macOS goes through LaunchServices so an already running app receives the URL
- * as `open-url`; Windows and Linux pass it as an argument, which the running
- * instance receives through `second-instance`. The recorded executable is the
- * fallback for development builds, where the scheme is not registered.
- */
-export const launchDesktop: DesktopLauncher = async (target, url) => {
-  const handler = process.platform === 'darwin' ? '/usr/bin/open' : process.platform === 'linux' ? 'xdg-open' : null
-  if (handler) {
-    try { await openWithHandler(handler, url); return } catch { /* Fall back to the recorded executable. */ }
-  }
-  await spawnDetached(target.executablePath, [...target.launchArgs, url])
+export const launchDesktop: DesktopLauncher = async () => {
+  throw new Error('独立插件模式请直接使用内置远程控制完成连接。')
 }
 
 export function launchResult(flowId: string): DesktopLaunch {
