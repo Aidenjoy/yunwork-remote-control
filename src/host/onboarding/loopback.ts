@@ -99,7 +99,7 @@ export class LoopbackFlow {
 }
 
 function progressHtml(nonce: string, statusPath: string): string {
-  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接设备 · Agents Anywhere</title>
+  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接设备 · 云大师远程控制</title>
 <style nonce="${nonce}">
 :root{color-scheme:light dark;--background:#fff;--foreground:#0a0a0a;--muted:#737373}
 @media(prefers-color-scheme:dark){:root{--background:#0a0a0a;--foreground:#fafafa;--muted:#a1a1a1}}

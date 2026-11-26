@@ -98,7 +98,7 @@ export function turnOutcomeNotice(namespace: string, externalId: string, outcome
   return {
     noticeId: turnOutcomeNoticeId(platformId, outcome.endSeq), sessionId: platformId, runtime: 'dsh',
     type: 'interaction', interactionType: 'execution_error',
-    title: failed ? 'DSH 本轮执行失败' : 'DSH 本轮没有回复',
+    title: failed ? '本轮执行失败' : '本轮没有回复',
     message: failed
       ? outcome.error?.message || '本轮执行失败，没有生成回复。'
       : outcome.steps === 0

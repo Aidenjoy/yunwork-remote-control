@@ -36,7 +36,7 @@ export class OnboardingService extends TypertRemoteService implements Onboarding
   constructor(ctx: Context, config: Config) {
     super(ctx, HOST_NAMESPACE)
     this.logsDirectory = join(stateRoot(config), 'logs')
-    this.diagnostics = onboardingDiagnostics(ctx.logger('agents-anywhere-onboarding'), this.logsDirectory, this.pluginLogOutput)
+    this.diagnostics = onboardingDiagnostics(ctx.logger('yundashi-remote-control'), this.logsDirectory, this.pluginLogOutput)
     this.makeManager = () => new OnboardingManager(resolveConfig(config), {
       diagnostics: this.diagnostics,
       logOutput: this.pluginLogOutput,

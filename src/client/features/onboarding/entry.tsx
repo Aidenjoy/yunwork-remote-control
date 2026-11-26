@@ -1,7 +1,7 @@
 import { translateMessage, type Translate } from '../../locales.js'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Button, Modal, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import { Download, MessageCircle, Smartphone, Star } from 'lucide-react'
+import { Smartphone } from 'lucide-react'
 import clsx from 'clsx'
 import type { OnboardingHostApi } from '../../../contracts/index.js'
 import { OnboardingSection } from './section.js'
@@ -11,12 +11,6 @@ import css from './entry.module.css'
 import { SettingsPanel } from './settings-panel.js'
 import { BridgeStatusNotice } from './bridge-status.js'
 import { BridgeLogsPanel } from './bridge-logs-panel.js'
-
-const homeLinks = [
-  { label: '下载 Agents Anywhere 桌面端', url: 'https://www.agents-anywhere.com', icon: Download },
-  { label: '加入内测交流群', url: 'https://github.com/anywhere-labs/Agents-Anywhere#%E4%BA%A4%E6%B5%81%E4%B8%8E%E5%8F%8D%E9%A6%88', icon: MessageCircle },
-  { label: '去 GitHub 点 Star', url: 'https://github.com/anywhere-labs/Agents-Anywhere', icon: Star },
-] as const
 
 const tabs = ['connection', 'settings', 'logs'] as const
 const tabLabels = { connection: '登录和连接', settings: '设置', logs: '运行日志' } as const
@@ -59,7 +53,7 @@ export function ConnectionEntry({ wide, host, t, renderTrigger }: ConnectionEntr
   const showLogin = standalone && !snapshot.account && tab === 'connection'
   const detectionError = snapshot?.desktop.status === 'error' ? snapshot.desktop.message : !snapshot ? state.readError : null
   const detectionMessage = detectionError ?? (snapshot?.desktop.status === 'installed'
-    ? t('Agents Anywhere 桌面端正在运行。请在桌面端完成连接设置。') : t('正在检查连接方式…'))
+    ? t('云大师桌面端正在运行。请在桌面端完成连接设置。') : t('正在检查连接方式…'))
   const trigger = useRef<HTMLElement | null>(null)
   const content = useRef<HTMLDivElement | null>(null)
   const close = useCallback(() => {
@@ -146,7 +140,7 @@ export function ConnectionEntry({ wide, host, t, renderTrigger }: ConnectionEntr
     <Modal
       open={open}
       onClose={close}
-      title={branded ? t('{brand}远程控制', { brand: brandName }) : (standalone ? 'Agents Anywhere' : t('远程控制'))}
+      title={t('{brand}远程控制', { brand: brandName })}
       closeLabel={t('关闭远程控制')}
       className={clsx(css.dialog, branded ? css.accountDialog : (standalone ? css.wordmarkDialog : css.accountDialog), tab === 'logs' && css.logsDialog)}
       contentClassName={clsx(css.dialogContent)}
@@ -172,7 +166,7 @@ export function ConnectionEntry({ wide, host, t, renderTrigger }: ConnectionEntr
           {state.error ? <p className={css.placeholder} role="alert">{translateMessage(t, state.error)}</p> : null}
           {detectionError
             ? <Button variant="outline" disabled={state.busy} onClick={() => void state.run(state.refresh)}>{t('重新检查')}</Button>
-            : <Button variant="primary" disabled={state.busy} onClick={() => void state.run(() => host.openDesktop())}>{t('打开 Agents Anywhere')}</Button>}
+            : <Button variant="primary" disabled={state.busy} onClick={() => void state.run(() => host.openDesktop())}>{t('打开云大师桌面端')}</Button>}
         </> : <>
             {tab === 'settings' ? <SettingsPanel t={t} host={host} state={state} snapshot={snapshot} onConnection={() => setTab('connection')} />
               : snapshot.account ? <AccountPanel t={t} key={`${snapshot.settings.apiBaseUrl}:${snapshot.account.userId}`} host={host} state={state} snapshot={snapshot} account={snapshot.account} />
@@ -181,12 +175,6 @@ export function ConnectionEntry({ wide, host, t, renderTrigger }: ConnectionEntr
                   <OnboardingSection t={t} host={host} state={state} />
                 </>}
         </>}
-            {!branded && tab === 'connection' ? <nav className={css.homeLinks} aria-label={t('Agents Anywhere 相关链接')}>
-              {homeLinks.map(({ label, url, icon: Icon }) => <Button key={url} variant="outline"
-                icon={<Icon size={16} strokeWidth={1.5} />} onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
-                {t(label)}
-              </Button>)}
-            </nav> : null}
           </div>
       </div>
     </Modal>

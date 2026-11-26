@@ -38,7 +38,7 @@ export function SettingsPanel({ t, host, state, snapshot, onConnection }: {
   const id = useId()
   const signature = JSON.stringify(management?.settings)
   useEffect(() => { setDraft(management?.settings) }, [signature])
-  if (!management || !draft) return <p className={css.hint} role="status">{t('请重启 DSH Host，以加载 Connector 管理接口。')}</p>
+  if (!management || !draft) return <p className={css.hint} role="status">{t('请重启桌面端，以加载连接器管理接口。')}</p>
   const connecting = ['authorizing', 'pairing', 'starting'].includes(snapshot.stage)
   const busy = state.busy || connecting || Boolean(state.readError)
   const status = connectorStatus(snapshot, state.readError, t)
@@ -144,7 +144,7 @@ export function SettingsPanel({ t, host, state, snapshot, onConnection }: {
       <div className={css.section}>
         <h3>{t('同步设置')}</h3>
         <div className={css.row}>
-          <div><span>{t('同步间隔')}</span><p className={css.hint}>{t('用于定时扫描的 Agent；DSH 消息实时同步')}</p></div>
+          <div><span>{t('同步间隔')}</span><p className={css.hint}>{t('用于定时扫描的 Agent；本地会话消息实时同步')}</p></div>
           <Choice label={t('同步间隔')} disabled={busy} value={String(draft.syncIntervalSeconds)}
             options={[...new Set([...SYNC_INTERVALS, draft.syncIntervalSeconds])].sort((a, b) => a - b).map(value => ({ id: String(value), label: t('{count} 秒', { count: value }) }))}
             onChange={value => update('syncIntervalSeconds', Number(value))} />
@@ -180,7 +180,7 @@ export function SettingsPanel({ t, host, state, snapshot, onConnection }: {
         disabled={reinstalling} onCancel={() => setReinstall(false)} onConfirm={confirmReinstall} />
       <RiskConfirmation open={reset !== null} title={reset === 'force' ? t('无法撤销连接') : t('恢复出厂设置')}
         description={reset === 'force' ? t('服务端撤销失败，本地数据尚未清理。可以取消后重试，或仅清理本地数据；原设备凭据在服务端可能仍有效。')
-          : t('将撤销当前设备凭据、停止 Connector，并清除本插件的本地连接数据。DSH 会话和共享的设备记录会保留。')}
+          : t('将撤销当前设备凭据、停止 Connector，并清除本插件的本地连接数据。本地会话和共享的设备记录会保留。')}
         acknowledgeLabel={t('我了解恢复出厂设置的影响')} acknowledged={acknowledged} onAcknowledgedChange={setAcknowledged}
         cancelLabel={t('取消')} closeLabel={t('关闭恢复出厂设置确认')} confirmLabel={reset === 'force' ? t('仅清理本地数据') : t('确认恢复出厂设置')}
         disabled={state.busy} onCancel={() => { if (!state.busy) { setReset(null); state.clearError() } }} onConfirm={() => void confirmReset()} />

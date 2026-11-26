@@ -202,8 +202,8 @@ export async function checkClient(source: string, packageId: string): Promise<vo
             return () => { pluginEntries.delete(options.name) }
           }
           assert.equal(options.name, 'sidebar.footer.action', 'The entry belongs above Settings, not inside it')
-          assert.equal(options.id, 'agents-anywhere-next')
-          assert.equal(options.label?.(), '远程控制')
+          assert.equal(options.id, 'yundashi-remote-control')
+          assert.equal(options.label?.(), '云大师远程控制')
           entry = { Component: Localized, props: options.inject() }
           entryCount++
           return () => { entryCount-- }

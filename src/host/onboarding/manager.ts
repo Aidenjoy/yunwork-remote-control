@@ -106,7 +106,7 @@ export class OnboardingManager {
     this.settings = { apiBaseUrl: config.apiBaseUrl }
     this.connectorSettings = new ConnectorSettingsStore(config, dependencies.systemLanguages)
     this.logOutput = dependencies.logOutput ?? new RpcLogOutput(512, 'plugin')
-    this.diagnostics = dependencies.diagnostics ?? new RuntimeDiagnostics(this.logOutput, {}, 'dsh-plugin')
+    this.diagnostics = dependencies.diagnostics ?? new RuntimeDiagnostics(this.logOutput, {}, 'yundashi-remote-control')
     this.connector = dependencies.connector ?? new SourceConnector(
       config,
       undefined,
@@ -274,7 +274,7 @@ export class OnboardingManager {
         packaged: this.desktop.packaged,
       }, url)
     } catch (error) {
-      throw new Error(`无法打开 Agents Anywhere 桌面端：${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`无法打开云大师桌面端：${error instanceof Error ? error.message : String(error)}`)
     }
     return { flowId, url }
   }

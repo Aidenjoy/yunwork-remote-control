@@ -52,8 +52,8 @@ function ConnectionSettings({ host, t, onConnection }: { t: Translate; host: Onb
       ? <Button variant="outline" disabled={state.busy} onClick={() => { void state.run(state.refresh) }}>{t('重新检查')}</Button> : null}
   </>
   if (snapshot.desktop.status === 'installed') return <>
-    <p>{t('Agents Anywhere 桌面端正在运行。请在桌面端管理连接设置。')}</p>
-    <Button variant="outline" disabled={state.busy} onClick={() => { void state.run(() => host.openDesktop()) }}>{t('打开 Agents Anywhere')}</Button>
+    <p>{t('云大师桌面端正在运行。请在桌面端管理连接设置。')}</p>
+    <Button variant="outline" disabled={state.busy} onClick={() => { void state.run(() => host.openDesktop()) }}>{t('打开云大师桌面端')}</Button>
     {state.error ? <p role="alert">{translateMessage(t, state.error)}</p> : null}
   </>
   if (snapshot.ownership && snapshot.ownership.status !== 'owned') return <p role="alert">{translateMessage(t, snapshot.ownership.message || '暂时无法检查本机 Connector 状态，请稍后重试。')}</p>

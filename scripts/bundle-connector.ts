@@ -1,5 +1,5 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, join, relative, resolve, sep } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const FALLBACK = join(ROOT, 'bundled-connector')
@@ -12,15 +12,23 @@ if (!existsSync(SOURCE)) {
   throw new Error(`Missing connector source directory at ${SOURCE}`)
 }
 
-const EXCLUDED_NAMES = new Set(['.venv', '__pycache__', '.pytest_cache', 'tests', '.git'])
+const IGNORED_PARTS = new Set(['.venv', '__pycache__', '.pytest_cache', '.ruff_cache', '_reference', '_deprecated', 'tests', '.git'])
 
 rmSync(TARGET, { recursive: true, force: true })
-mkdirSync(join(ROOT, 'lib'), { recursive: true })
-cpSync(SOURCE, TARGET, {
-  recursive: true,
-  filter: (src) => {
-    const base = src.split(/[/\\]/).pop() ?? ''
-    return !EXCLUDED_NAMES.has(base) && !base.endsWith('.pyc')
-  },
-})
+mkdirSync(TARGET, { recursive: true })
+
+for (const entry of ['pyproject.toml', 'connector']) {
+  const srcEntry = join(SOURCE, entry)
+  if (!existsSync(srcEntry)) {
+    throw new Error(`Missing connector entry ${entry} at ${SOURCE}`)
+  }
+  cpSync(srcEntry, join(TARGET, entry), {
+    recursive: true,
+    filter: (src) => !relative(SOURCE, src).split(sep).some(part => IGNORED_PARTS.has(part)) && !basename(src).endsWith('.pyc'),
+  })
+}
+
+// pyproject.toml declares readme = "README.md" for hatchling; emit a minimal file without upstream branding.
+writeFileSync(join(TARGET, 'README.md'), '# Yundashi Remote Control Connector\n', 'utf8')
+
 process.stdout.write(`Copied connector from ${SOURCE} -> ${TARGET}\n`)

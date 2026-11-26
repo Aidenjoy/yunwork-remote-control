@@ -29,5 +29,5 @@ export function onboardingDiagnostics(
     async flush() {
       await Promise.all([pending, secondary?.flush() ?? Promise.resolve()])
     },
-  }, {}, 'dsh-plugin')
+  }, {}, 'yundashi-remote-control')
 }

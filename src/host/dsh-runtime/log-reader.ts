@@ -4,7 +4,7 @@ import { record } from './types.js'
 
 function resolveEntrySource(entry: LogEntry): RuntimeLogSource {
   const rawSource = entry.source as string
-  if (rawSource === 'plugin' || entry.name === 'dsh-plugin' || entry.name.startsWith('dsh-plugin.')) {
+  if (rawSource === 'plugin' || entry.name === 'dsh-plugin' || entry.name.startsWith('dsh-plugin.') || entry.name === 'yundashi-remote-control' || entry.name.startsWith('yundashi-remote-control.')) {
     return 'plugin'
   }
   if (rawSource === 'connector') {

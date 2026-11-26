@@ -6,7 +6,7 @@ import { guardMeshCallResults } from './meshcall-guard.js'
 
 export { Config } from './config.js'
 
-export const name = 'agents-anywhere-bridge-next'
+export const name = 'yundashi-remote-control'
 
 export function apply(ctx: Context, config: Config): void {
   guardMeshCallResults()

@@ -40,7 +40,7 @@ export function OnboardingSection({ t, host, state: panel }: { t: Translate; hos
   const failed = Boolean(error || snapshot?.stage === 'error' || detected === 'error')
   const state: StateDotState = failed ? 'error' : !snapshot || busy || connecting ? 'ongoing' : snapshot.stage === 'ready' ? 'done' : 'warning'
   const statusMessage = error
-    ?? (detected === 'installed' ? t('Agents Anywhere 桌面端正在运行，请在桌面端继续连接。')
+    ?? (detected === 'installed' ? t('云大师桌面端正在运行，请在桌面端继续连接。')
       : detected === 'error' ? snapshot?.desktop.message
         : snapshot?.account && snapshot.stage === 'ready' ? t('已登录为 {name}', { name: snapshot.account.displayName })
           : snapshot?.stage === 'authorizing' ? t('已打开登录页面，完成登录后将自动返回。')
@@ -53,7 +53,7 @@ export function OnboardingSection({ t, host, state: panel }: { t: Translate; hos
       disabled={unavailable}
       onClick={() => begin('cloud')}
     >
-      {primaryBusy ? t('正在连接…') : (branded ? t('登录{brand}远程控制', { brand: brandName }) : t('登录 Agents Anywhere Cloud'))}
+      {primaryBusy ? t('正在连接…') : t('登录{brand}远程控制', { brand: brandName })}
     </Button>
     {branded ? null : showServer ? <form id={serverFormId} className={css.form} onSubmit={(event) => {
       event.preventDefault()
@@ -61,7 +61,7 @@ export function OnboardingSection({ t, host, state: panel }: { t: Translate; hos
     }}>
       <p className={css.separator} aria-hidden="true">OR</p>
       <div className={css.fields}>
-        <label className={css.field} htmlFor={`${serverFormId}-url`}>{t('连接到你自己的 Agents Anywhere 服务实例')}</label>
+        <label className={css.field} htmlFor={`${serverFormId}-url`}>{t('连接到自定义远程控制服务实例')}</label>
         <Input
           id={`${serverFormId}-url`}
           className={clsx(css.input)}
@@ -96,7 +96,7 @@ export function OnboardingSection({ t, host, state: panel }: { t: Translate; hos
       aria-expanded={showServer}
       aria-controls={serverFormId}
       onClick={() => { setShowServer(true); clearError() }}
-    >{t('连接到你自己的 Agents Anywhere 服务实例')}</Button>}
+    >{t('连接到自定义远程控制服务实例')}</Button>}
     {statusMessage ? <p id={errorId} className={clsx(css.status, failed && css.error)} role={failed ? 'alert' : 'status'}>
       <StateDot state={state} className={css.stateDot} />
       <span>{translateMessage(t, statusMessage)}</span>
